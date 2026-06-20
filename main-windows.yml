@@ -75,3 +75,8 @@
     - name: Display Chromium version
       debug:
         var: chrome_version.stdout
+
+    - name: Run powershell file
+      win_shell: powershell.exe -ExecutionPolicy Bypass -File "D:\VM\windows-ucs.ps1"
+      delegate_to: "{{ ansible_host }}"
+      register: ps_script_result
