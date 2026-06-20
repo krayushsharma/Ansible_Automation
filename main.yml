@@ -22,6 +22,29 @@
           - requests
           - beautifulsoup4
     
+    - name: Install Chromium dependencies
+      become: true
+      package:
+        name:
+          - nss
+          - nspr
+          - atk
+          - at-spi2-atk
+          - cups-libs
+          - libdrm
+          - libxcb
+          - libX11
+          - libXcomposite
+          - libXdamage
+          - libXext
+          - libXfixes
+          - libXrandr
+          - pango
+          - cairo
+          - alsa-lib
+          - gtk3
+        state: present
+    
     - name: Create Chromium Directory
       ansible.builtin.file:
         path: "{{ chromium_dir }}"
@@ -61,5 +84,4 @@
         cmd: "{{venv_path}}/bin/python /tmp/script.py"
       environment:
         CHROME_PATH: "{{ chromium_dir }}/chrome-linux/chrome" 
-    
     

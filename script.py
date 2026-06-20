@@ -62,39 +62,39 @@ def verify_chromium():
 
     # Check dependencies
 
-    # if shutil.which("ldd"):
+    if shutil.which("ldd"):
 
-    #     print("\nChecking shared libraries...")
+        print("\nChecking shared libraries...")
 
-    #     try:
+        try:
 
-    #         result = subprocess.run(
-    #             ["ldd", chrome_path],
-    #             stdout=subprocess.PIPE,
-    #             stderr=subprocess.PIPE,
-    #             text=True
-    #         )
+            result = subprocess.run(
+                ["ldd", chrome_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
 
-    #         missing = []
+            missing = []
 
-    #         for line in result.stdout.splitlines():
+            for line in result.stdout.splitlines():
 
-    #             if "not found" in line:
-    #                 missing.append(line.strip())
+                if "not found" in line:
+                    missing.append(line.strip())
 
-    #         if missing:
+            if missing:
 
-    #             print("\n[ERROR] Missing Linux libraries detected:\n")
+                print("\n[ERROR] Missing Linux libraries detected:\n")
 
-    #             for item in missing:
-    #                 print(item)
+                for item in missing:
+                    print(item)
 
-    #             return False
+                return False
 
-    #         print("[OK] All shared libraries found")
+            print("[OK] All shared libraries found")
 
-    #     except Exception as e:
-    #         print(f"[WARNING] Unable to run ldd: {e}")
+        except Exception as e:
+            print(f"[WARNING] Unable to run ldd: {e}")
 
     # Test headless startup
 
