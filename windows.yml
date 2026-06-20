@@ -1,0 +1,47 @@
+---
+- name: Test Windows Connectivity
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    ansible_host: 192.168.31.165
+    ansible_user: ansibleadmin
+    ansible_password: Password@123
+    ansible_connection: winrm
+    ansible_port: 5985
+    ansible_winrm_transport: basic
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+
+    - name: Test WinRM connectivity
+      win_ping:
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Get hostname
+      win_shell: hostname
+      register: hostname_result
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Display hostname
+      debug:
+        msg: "Connected successfully to {{ hostname_result.stdout }}"
+
+    - name: Get logged-in user
+      win_shell: whoami
+      register: user_result
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Display user
+      debug:
+        var: user_result.stdout
+
+    - name: Get Windows version
+      win_shell: |
+        (Get-CimInstance Win32_OperatingSystem).Caption
+      register: os_result
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Display OS
+      debug:
+        var: os_result.stdout
