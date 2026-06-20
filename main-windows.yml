@@ -1,5 +1,5 @@
 ---
-- name: Test Windows Connectivity
+- name: Test Windows Connectivity and Setup Chromium
   hosts: localhost
   gather_facts: false
 
@@ -11,9 +11,10 @@
     ansible_port: 5985
     ansible_winrm_transport: basic
     ansible_winrm_server_cert_validation: ignore
-    venv_path: /tmp/python_env
-    chromium_dir: /tmp/chromium
-    chromium_zip: /tmp/chromium.zip
+
+    venv_path: C:\Temp\python_env
+    chromium_dir: C:\Temp\chromium
+    chromium_zip: C:\Temp\chromium.zip
 
   tasks:
 
@@ -29,45 +30,60 @@
     - name: Display hostname
       debug:
         msg: "Connected successfully to {{ hostname_result.stdout }}"
-    
-    - name: Create Python VirtualEnv
-      ansible.builtin.command:
-        cmd: python3 -m venv {{ venv_path }}
+
+    - name: Create temp directory
+      win_file:
+        path: C:\Temp
+        state: directory
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Create Python virtual environment
+      win_shell: |
+        python -m venv "{{ venv_path }}"
       args:
-        creates: "{{venv_path}}/bin/python"
+        creates: "{{ venv_path }}\\Scripts\\python.exe"
+      delegate_to: "{{ ansible_host }}"
 
-    - name: Install python module
-      ansible.builtin.pip:
-        virtualenv: "{{ venv_path }}"
-        name: 
-          - pyppeteer
-          - requests
-          - beautifulsoup4
+    - name: Install Python packages
+      win_shell: |
+        "{{ venv_path }}\Scripts\pip.exe" install pyppeteer requests beautifulsoup4
+      delegate_to: "{{ ansible_host }}"
 
-    - name: Create Chromium Directory
-      ansible.builtin.file:
+    - name: Create Chromium directory
+      win_file:
         path: "{{ chromium_dir }}"
         state: directory
-        mode: '0755'
-    
+      delegate_to: "{{ ansible_host }}"
+
     - name: Download Chromium
-      ansible.builtin.get_url:
-        url: "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1000027/chrome-win.zip"
+      win_get_url:
+        url: https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1000027/chrome-win.zip
         dest: "{{ chromium_zip }}"
-        mode: '0644'
+      delegate_to: "{{ ansible_host }}"
 
     - name: Extract Chromium
-      ansible.builtin.unarchive:
+      community.windows.win_unzip:
         src: "{{ chromium_zip }}"
         dest: "{{ chromium_dir }}"
-        remote_src: true
+      delegate_to: "{{ ansible_host }}"
 
-    - name: Verfiy Chromium exists
-      ansible.builtin.stat:
-        path: "{{ chromium_dir }}/chrome-win/chrome"
+    - name: Verify Chromium exists
+      win_stat:
+        path: "{{ chromium_dir }}\\chrome-win\\chrome.exe"
       register: chrome_stat
+      delegate_to: "{{ ansible_host }}"
 
     - name: Fail if Chromium missing
-      ansible.builtin.fail:
+      fail:
         msg: "Chromium extraction failed"
       when: not chrome_stat.stat.exists
+
+    - name: Check Chromium version
+      win_shell: |
+        "{{ chromium_dir }}\chrome-win\chrome.exe" --version
+      register: chrome_version
+      delegate_to: "{{ ansible_host }}"
+
+    - name: Display Chromium version
+      debug:
+        var: chrome_version.stdout
