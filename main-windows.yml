@@ -37,18 +37,6 @@
         state: directory
       delegate_to: "{{ ansible_host }}"
 
-    - name: Create Python virtual environment
-      win_shell: |
-        python -m venv "{{ venv_path }}"
-      args:
-        creates: "{{ venv_path }}\\Scripts\\python.exe"
-      delegate_to: "{{ ansible_host }}"
-
-    - name: Install Python packages
-      win_shell: |
-        "{{ venv_path }}\Scripts\pip.exe" install pyppeteer requests beautifulsoup4
-      delegate_to: "{{ ansible_host }}"
-
     - name: Create Chromium directory
       win_file:
         path: "{{ chromium_dir }}"
