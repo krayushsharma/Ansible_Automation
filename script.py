@@ -3,8 +3,155 @@ import sys
 import json
 import subprocess
 import os
- 
-chrome_path = r"/tmp/chromium/chrome-linux/chrome"
+import shutil
+
+def verify_chromium():
+
+    chrome_path = os.environ.get(
+        "CHROME_PATH",
+        "/tmp/chromium/chrome-linux/chrome"
+    )
+
+    print("\n==============================")
+    print("CHROMIUM PRE-CHECK")
+    print("==============================")
+    print(f"Chrome Path: {chrome_path}")
+
+    # Check file exists
+    if not os.path.exists(chrome_path):
+        print("[ERROR] Chromium binary not found")
+        return False
+
+    print("[OK] Chromium file exists")
+
+    # Check execute permission
+    if not os.access(chrome_path, os.X_OK):
+
+        print("[WARNING] Execute permission missing")
+        print("[*] Applying chmod +x")
+
+        try:
+            os.chmod(chrome_path, 0o755)
+        except Exception as e:
+            print(f"[ERROR] Unable to set execute permission: {e}")
+            return False
+
+    if not os.access(chrome_path, os.X_OK):
+        print("[ERROR] Chromium still not executable")
+        return False
+
+    print("[OK] Execute permission verified")
+
+    # Check version
+    try:
+
+        result = subprocess.run(
+            [chrome_path, "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=20
+        )
+
+        print("[OK] Chromium Version:")
+        print(result.stdout.strip())
+
+    except Exception as e:
+        print(f"[ERROR] Cannot execute Chromium: {e}")
+        return False
+
+    # Check dependencies
+
+    if shutil.which("ldd"):
+
+        print("\nChecking shared libraries...")
+
+        try:
+
+            result = subprocess.run(
+                ["ldd", chrome_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            missing = []
+
+            for line in result.stdout.splitlines():
+
+                if "not found" in line:
+                    missing.append(line.strip())
+
+            if missing:
+
+                print("\n[ERROR] Missing Linux libraries detected:\n")
+
+                for item in missing:
+                    print(item)
+
+                return False
+
+            print("[OK] All shared libraries found")
+
+        except Exception as e:
+            print(f"[WARNING] Unable to run ldd: {e}")
+
+    # Test headless startup
+
+    print("\nTesting Chromium startup...")
+
+    try:
+
+        result = subprocess.run(
+            [
+                chrome_path,
+                "--headless",
+                "--no-sandbox",
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--dump-dom",
+                "about:blank"
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+
+            print("[ERROR] Chromium startup test failed")
+
+            print("\nSTDOUT:")
+            print(result.stdout)
+
+            print("\nSTDERR:")
+            print(result.stderr)
+
+            return False
+
+        print("[OK] Chromium headless startup successful")
+
+    except Exception as e:
+        print(f"[ERROR] Chromium startup test failed: {e}")
+        return False
+
+    print("\n[OK] Chromium validation completed successfully")
+    print("==============================\n")
+
+    return True
+
+
+
+
+
+
+
+
+chrome_path = os.environ.get(
+    "CHROME_PATH",
+    "/tmp/chromium/chrome-linux/chrome"
+)
 
 try:
     import pyppeteer
@@ -317,7 +464,9 @@ async def automate_ucs(username, password, output_dir="."):
         print("[*] Browser closed")
  
 if __name__ == "__main__":
-
+    if not verify_chromium():
+        print("[FATAL] Chromium validation failed")
+    sys.exit(1)
     
     username = "admin"
     password = "12345678"
