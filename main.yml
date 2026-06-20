@@ -49,3 +49,17 @@
       ansible.builtin.fail:
         msg: "Chromium extraction failed"
       when: not chrome_stat.stat.exists
+
+    - name: Copy UCS script
+      ansible.builtin.copy:
+        src: script.py
+        dest: /tmp/script.py
+        mode: '0755'
+    
+    - name: RUN UCS automation
+      ansible.builtin.command:
+        cmd: "{{venv_path}}/bin/python /tmp/script.py"
+      environment:
+        CHROME_PATH: "{{ chromium_dir }}/chrome-linux/chrome" 
+    
+    
