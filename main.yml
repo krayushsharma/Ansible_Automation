@@ -1,8 +1,51 @@
 ---
-- name: Hello World Playbook
-  hosts: localhost
+- hosts: localhost
   connection: local
+  
+  vars:
+    venv_path: /tmp/python_env
+    chromium_dir: /tmp/chromium
+    chromium_zip: /tmp/chromium.zip
+
   tasks:
-    - name: Print message
-      ansible.builtin.debug:
-        msg: "Hello, world!"
+    - name: Create Python VirtualEnv
+      ansible.builtin.command:
+        cmd: python3 -m venv {{ venv_path }}
+      args:
+        creates: "{{venv_path}}/bin/python"
+
+    - name: Install python module
+      ansible.builtin.pip:
+        virtualenv: "{{ venv_path }}"
+        name: 
+          - pyppeteer
+          - requests
+          - beautifulsoup4
+    
+    - name: Create Chromium Directory
+      ansible.builtin.file:
+        path: "{{ chromium_dir }}"
+        state: directory
+        mode: '0755'
+    
+    - name: Download Chromium
+      ansible.builtin.get_url:
+        url: "https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1181205/chrome-linux.zip"
+        dest: "{{ chromium_zip }}"
+        mode: '0644'
+
+    - name: Extract Chromium
+      ansible.builtin.unarchive:
+        src: "{{ chromium_zip }}"
+        dest: "{{ chromium_dir }}"
+        remote_src: true
+
+    - name: Verfiy Chromium exists
+      ansible.builtin.stat:
+        path: "{{ chromium_dir }}/chrome-linux/chrome"
+      register: chrome_stat
+
+    - name: Fail if Chromium missing
+      ansible.builtin.fail:
+        msg: "Chromium extraction failed"
+      when: not chrome_stat.stat.exists
