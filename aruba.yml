@@ -1,0 +1,32 @@
+---
+- name: Test Aruba CX Connectivity
+  hosts: all
+  gather_facts: false
+
+  vars:
+    ansible_host: 192.168.56.20
+    ansible_user: admin
+    ansible_password: password
+
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: arubanetworks.aoscx.aoscx
+
+  tasks:
+
+    - name: Check Aruba switch version
+      ansible.netcommon.cli_command:
+        command: show version
+      register: version_output
+
+    - name: Display Aruba version
+      ansible.builtin.debug:
+        var: version_output.stdout
+
+    - name: Check interface status
+      ansible.netcommon.cli_command:
+        command: show interface brief
+      register: interface_output
+
+    - name: Display interface status
+      ansible.builtin.debug:
+        var: interface_output.stdout
