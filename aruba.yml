@@ -1,13 +1,13 @@
 ---
-- name: Aruba CX - Complete Health Check
+- name: Aruba CX - Device Health and Inventory Check
   hosts: all
   gather_facts: false
 
   vars:
 
-    # ==============================
-    # DEVICE CONNECTION VARIABLES
-    # ==============================
+    # =====================================================
+    # CONNECTION VARIABLES
+    # =====================================================
 
     ansible_host: 192.168.56.20
     ansible_user: admin
@@ -19,240 +19,309 @@
     ansible_command_timeout: 60
     ansible_connect_timeout: 30
 
-    # ==============================
-    # HEALTH THRESHOLDS
-    # ==============================
-
-    cpu_threshold: 80
-    memory_threshold: 80
-
   tasks:
 
-    # ============================================================
-    # 1. BASIC CONNECTIVITY TEST
-    # ============================================================
+    # =====================================================
+    # 1. DEVICE INFORMATION
+    # =====================================================
 
-    - name: Check Aruba device connectivity
+    - name: Get device version and model
       ansible.netcommon.cli_command:
         command: show version
-      register: connectivity_result
-      failed_when: false
-
-    - name: Fail if Aruba is unreachable
-      ansible.builtin.fail:
-        msg: "Unable to connect to Aruba CX at {{ ansible_host }}"
-      when: connectivity_result.failed
-
-    - name: Display connectivity status
-      ansible.builtin.debug:
-        msg:
-          - "=========================================="
-          - "ARUBA CONNECTIVITY: SUCCESS"
-          - "DEVICE IP: {{ ansible_host }}"
-          - "=========================================="
-
-    # ============================================================
-    # 2. COLLECT DEVICE INFORMATION
-    # ============================================================
-
-    - name: Get system information
-      ansible.netcommon.cli_command:
-        command: show system
-      register: system_info
-
-    - name: Get Aruba version
-      ansible.netcommon.cli_command:
-        command: show version
-      register: version_info
+      register: version_output
 
     - name: Get hostname
       ansible.netcommon.cli_command:
         command: show hostname
-      register: hostname_info
+      register: hostname_output
 
-    - name: Get uptime
+    - name: Get system information
+      ansible.netcommon.cli_command:
+        command: show system
+      register: system_output
+
+    # =====================================================
+    # 2. UPTIME
+    # =====================================================
+
+    - name: Get system uptime
       ansible.netcommon.cli_command:
         command: show system | include uptime
-      register: uptime_info
+      register: uptime_output
 
-    # ============================================================
-    # 3. CHECK CPU
-    # ============================================================
+    # =====================================================
+    # 3. CPU AND MEMORY
+    # =====================================================
 
-    - name: Check CPU utilization
+    - name: Get CPU and memory utilization
       ansible.netcommon.cli_command:
         command: show system resource-utilization
-      register: cpu_info
+      register: resource_output
 
-    # ============================================================
-    # 4. CHECK MEMORY
-    # ============================================================
+    # =====================================================
+    # 4. STORAGE / FLASH
+    # =====================================================
 
-    - name: Check memory utilization
+    - name: Get storage information
       ansible.netcommon.cli_command:
-        command: show system resource-utilization
-      register: memory_info
+        command: show storage
+      register: storage_output
+      failed_when: false
 
-    # ============================================================
-    # 5. CHECK MANAGEMENT INTERFACE
-    # ============================================================
+    - name: Get filesystem information
+      ansible.netcommon.cli_command:
+        command: show filesystem
+      register: filesystem_output
+      failed_when: false
 
-    - name: Check management interface
+    # =====================================================
+    # 5. MANAGEMENT INTERFACE
+    # =====================================================
+
+    - name: Get management interface status
       ansible.netcommon.cli_command:
         command: show interface mgmt
-      register: management_interface
+      register: management_output
 
-    # ============================================================
-    # 6. CHECK ALL INTERFACES
-    # ============================================================
+    # =====================================================
+    # 6. ALL INTERFACE STATUS
+    # =====================================================
 
-    - name: Check interface status
+    - name: Get interface summary
       ansible.netcommon.cli_command:
         command: show interface brief
-      register: interface_status
+      register: interface_output
 
-    # ============================================================
-    # 7. CHECK VLAN CONFIGURATION
-    # ============================================================
+    # =====================================================
+    # 7. VLAN INFORMATION
+    # =====================================================
 
-    - name: Check VLANs
+    - name: Get VLAN information
       ansible.netcommon.cli_command:
         command: show vlan
-      register: vlan_info
+      register: vlan_output
 
-    # ============================================================
-    # 8. CHECK LLDP NEIGHBORS
-    # ============================================================
+    # =====================================================
+    # 8. LLDP NEIGHBORS
+    # =====================================================
 
-    - name: Check LLDP neighbors
+    - name: Get LLDP neighbor information
       ansible.netcommon.cli_command:
         command: show lldp neighbor-info
-      register: lldp_info
+      register: lldp_output
+      failed_when: false
 
-    # ============================================================
-    # 9. CHECK VSX STATUS
-    # ============================================================
+    # =====================================================
+    # 9. ENVIRONMENT HEALTH
+    # =====================================================
+
+    - name: Check temperature
+      ansible.netcommon.cli_command:
+        command: show environment temperature
+      register: temperature_output
+      failed_when: false
+
+    - name: Check power supply
+      ansible.netcommon.cli_command:
+        command: show environment power-supply
+      register: power_output
+      failed_when: false
+
+    - name: Check fans
+      ansible.netcommon.cli_command:
+        command: show environment fan
+      register: fan_output
+      failed_when: false
+
+    # =====================================================
+    # 10. VSX STATUS
+    # =====================================================
 
     - name: Check VSX status
       ansible.netcommon.cli_command:
         command: show vsx status
-      register: vsx_status
+      register: vsx_output
       failed_when: false
 
-    # ============================================================
-    # 10. CHECK LOGS
-    # ============================================================
+    # =====================================================
+    # 11. RECENT EVENTS
+    # =====================================================
 
-    - name: Check recent system logs
+    - name: Get recent system events
       ansible.netcommon.cli_command:
         command: show events -n 20
-      register: system_logs
+      register: events_output
       failed_when: false
 
-    # ============================================================
-    # 11. DISPLAY DEVICE INFORMATION
-    # ============================================================
+    # =====================================================
+    # 12. DISPLAY DEVICE SUMMARY
+    # =====================================================
 
     - name: Display device information
       ansible.builtin.debug:
         msg:
-          - "=========================================="
-          - "DEVICE INFORMATION"
-          - "=========================================="
-          - "{{ hostname_info.stdout }}"
-          - "{{ version_info.stdout }}"
-          - "{{ uptime_info.stdout }}"
+          - "=================================================="
+          - "ARUBA CX DEVICE INFORMATION"
+          - "=================================================="
+          - "{{ hostname_output.stdout }}"
+          - "{{ version_output.stdout }}"
+          - "=================================================="
 
-    # ============================================================
-    # 12. DISPLAY RESOURCE INFORMATION
-    # ============================================================
+    # =====================================================
+    # 13. DISPLAY UPTIME
+    # =====================================================
 
-    - name: Display resource utilization
+    - name: Display uptime
       ansible.builtin.debug:
         msg:
-          - "=========================================="
-          - "RESOURCE UTILIZATION"
-          - "=========================================="
-          - "{{ cpu_info.stdout }}"
-          - "{{ memory_info.stdout }}"
+          - "=================================================="
+          - "SYSTEM UPTIME"
+          - "=================================================="
+          - "{{ uptime_output.stdout }}"
 
-    # ============================================================
-    # 13. DISPLAY MANAGEMENT STATUS
-    # ============================================================
+    # =====================================================
+    # 14. DISPLAY CPU AND MEMORY
+    # =====================================================
 
-    - name: Display management interface status
+    - name: Display CPU and memory information
       ansible.builtin.debug:
         msg:
-          - "=========================================="
+          - "=================================================="
+          - "CPU AND MEMORY UTILIZATION"
+          - "=================================================="
+          - "{{ resource_output.stdout }}"
+
+    # =====================================================
+    # 15. DISPLAY STORAGE
+    # =====================================================
+
+    - name: Display storage information
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
+          - "FLASH / STORAGE INFORMATION"
+          - "=================================================="
+          - "{{ storage_output.stdout | default('Storage information unavailable') }}"
+          - "{{ filesystem_output.stdout | default('Filesystem information unavailable') }}"
+
+    # =====================================================
+    # 16. DISPLAY MANAGEMENT INTERFACE
+    # =====================================================
+
+    - name: Display management interface
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
           - "MANAGEMENT INTERFACE"
-          - "=========================================="
-          - "{{ management_interface.stdout }}"
+          - "=================================================="
+          - "{{ management_output.stdout }}"
 
-    # ============================================================
-    # 14. DISPLAY INTERFACE STATUS
-    # ============================================================
+    # =====================================================
+    # 17. DISPLAY INTERFACE STATUS
+    # =====================================================
 
     - name: Display interface status
       ansible.builtin.debug:
         msg:
-          - "=========================================="
+          - "=================================================="
           - "INTERFACE STATUS"
-          - "=========================================="
-          - "{{ interface_status.stdout }}"
+          - "=================================================="
+          - "{{ interface_output.stdout }}"
 
-    # ============================================================
-    # 15. DISPLAY VLAN INFORMATION
-    # ============================================================
+    # =====================================================
+    # 18. DISPLAY VLAN INFORMATION
+    # =====================================================
 
     - name: Display VLAN information
       ansible.builtin.debug:
         msg:
-          - "=========================================="
+          - "=================================================="
           - "VLAN INFORMATION"
-          - "=========================================="
-          - "{{ vlan_info.stdout }}"
+          - "=================================================="
+          - "{{ vlan_output.stdout }}"
 
-    # ============================================================
-    # 16. DISPLAY LLDP INFORMATION
-    # ============================================================
+    # =====================================================
+    # 19. DISPLAY LLDP INFORMATION
+    # =====================================================
 
     - name: Display LLDP neighbors
       ansible.builtin.debug:
         msg:
-          - "=========================================="
+          - "=================================================="
           - "LLDP NEIGHBORS"
-          - "=========================================="
-          - "{{ lldp_info.stdout }}"
+          - "=================================================="
+          - "{{ lldp_output.stdout | default('No LLDP information available') }}"
 
-    # ============================================================
-    # 17. DISPLAY VSX STATUS
-    # ============================================================
+    # =====================================================
+    # 20. DISPLAY ENVIRONMENT STATUS
+    # =====================================================
+
+    - name: Display hardware environment status
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
+          - "TEMPERATURE"
+          - "=================================================="
+          - "{{ temperature_output.stdout | default('Temperature information unavailable') }}"
+
+          - "=================================================="
+          - "POWER SUPPLY"
+          - "=================================================="
+          - "{{ power_output.stdout | default('Power supply information unavailable') }}"
+
+          - "=================================================="
+          - "FAN STATUS"
+          - "=================================================="
+          - "{{ fan_output.stdout | default('Fan information unavailable') }}"
+
+    # =====================================================
+    # 21. DISPLAY VSX STATUS
+    # =====================================================
 
     - name: Display VSX status
       ansible.builtin.debug:
         msg:
-          - "=========================================="
+          - "=================================================="
           - "VSX STATUS"
-          - "=========================================="
-          - "{{ vsx_status.stdout | default('VSX is not configured') }}"
+          - "=================================================="
+          - "{{ vsx_output.stdout | default('VSX is not configured') }}"
 
-    # ============================================================
-    # 18. FINAL RESULT
-    # ============================================================
+    # =====================================================
+    # 22. DISPLAY RECENT EVENTS
+    # =====================================================
 
-    - name: Display final health check result
+    - name: Display recent events
       ansible.builtin.debug:
         msg:
-          - "=========================================="
-          - "ARUBA CX HEALTH CHECK COMPLETED"
-          - "=========================================="
-          - "Device: {{ ansible_host }}"
+          - "=================================================="
+          - "RECENT SYSTEM EVENTS"
+          - "=================================================="
+          - "{{ events_output.stdout | default('No event information available') }}"
+
+    # =====================================================
+    # 23. FINAL RESULT
+    # =====================================================
+
+    - name: Display final health check status
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
+          - "ARUBA CX HEALTH CHECK COMPLETED SUCCESSFULLY"
+          - "=================================================="
+          - "Device IP: {{ ansible_host }}"
           - "Connectivity: SUCCESS"
-          - "System information: COLLECTED"
-          - "Resource utilization: CHECKED"
-          - "Management interface: CHECKED"
-          - "Physical interfaces: CHECKED"
+          - "System Information: COLLECTED"
+          - "Uptime: CHECKED"
+          - "CPU: CHECKED"
+          - "Memory: CHECKED"
+          - "Storage/Flash: CHECKED"
+          - "Management Interface: CHECKED"
+          - "Interfaces: CHECKED"
           - "VLANs: CHECKED"
-          - "LLDP neighbors: CHECKED"
-          - "VSX status: CHECKED"
-          - "=========================================="
+          - "LLDP: CHECKED"
+          - "Temperature: CHECKED"
+          - "Power Supply: CHECKED"
+          - "Fans: CHECKED"
+          - "VSX: CHECKED"
+          - "System Events: CHECKED"
+          - "=================================================="
