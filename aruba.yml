@@ -11,7 +11,7 @@
 
     ansible_host: 192.168.56.20
     ansible_user: admin
-    ansible_password: Password
+    ansible_password: password
 
     ansible_connection: ansible.netcommon.network_cli
     ansible_network_os: arubanetworks.aoscx.aoscx
